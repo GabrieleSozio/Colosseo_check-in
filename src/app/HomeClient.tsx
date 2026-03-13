@@ -16,6 +16,7 @@ interface Tour {
     lingua: string;
     guida: string;
     overlay_data: any[];
+    numero_gruppo?: string;
 }
 
 export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
@@ -130,6 +131,11 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-5 h-5 text-gray-400" />
                                         <span className="text-xl font-bold text-gray-800">{tour.orario}</span>
+                                        {tour.numero_gruppo && (
+                                            <span className="ml-2 px-2.5 py-1 bg-indigo-100 text-indigo-800 text-xs font-black rounded-lg border border-indigo-200 shadow-sm">
+                                                Gruppo {tour.numero_gruppo}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 border border-gray-200 rounded-full shadow-inner">

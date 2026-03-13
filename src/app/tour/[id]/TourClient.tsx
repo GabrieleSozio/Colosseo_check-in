@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { QRCode } from 'react-qrcode-logo';
-import { Check, X, Users, ArrowLeft, Radio, Palette, Edit3, Trash2 } from 'lucide-react';
+import { Check, X, Users, ArrowLeft, Radio, Palette, Edit3, Trash2, Scissors } from 'lucide-react';
 import Link from 'next/link';
 import { Document, Page, pdfjs } from 'react-pdf';
 
@@ -19,6 +19,7 @@ interface Tour {
     guida: string;
     pdf_url?: string;
     overlay_data?: any;
+    numero_gruppo?: string;
 }
 
 interface Marker {
@@ -26,14 +27,14 @@ interface Marker {
     x: number;
     y: number;
     page: number;
-    type: 'check' | 'noshow';
+    type: 'check' | 'noshow' | 'split';
 }
 
 export default function TourClient({ initialTour }: { initialTour: Tour, initialBookings?: any[] }) {
     const [tour, setTour] = useState(initialTour);
     const [markers, setMarkers] = useState<Marker[]>([]);
     const [numPages, setNumPages] = useState<number>();
-    const [activeTool, setActiveTool] = useState<'check' | 'noshow' | null>(null);
+    const [activeTool, setActiveTool] = useState<'check' | 'noshow' | 'split' | null>(null);
     const [pageWidth, setPageWidth] = useState(800);
 
     useEffect(() => {
@@ -100,7 +101,10 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
 
     const handleRemoveMarker = (e: React.MouseEvent, markerId: string) => {
         e.stopPropagation();
-        saveMarkers(markers.filter(m => m.id !== markerId));
+        const conf = window.confirm("Sei sicuro di voler rimuovere questo stato o sbarramento dalla riga?");
+        if (conf) {
+            saveMarkers(markers.filter(m => m.id !== markerId));
+        }
     };
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
@@ -157,17 +161,31 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                         ))}
                     </div>
 
-                    <div className="flex flex-col mb-6">
-                        <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
-                            <Radio className="w-5 h-5" /> Canale Radio
-                        </label>
-                        <input
-                            type="text"
-                            value={tour.canale_radio || ''}
-                            onChange={(e) => handleUpdateTourInfo('canale_radio', e.target.value)}
-                            className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
-                            placeholder="es. 4. C9"
-                        />
+                    <div className="flex flex-col md:flex-row gap-6 mb-6">
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                <Radio className="w-5 h-5" /> Canale Radio
+                            </label>
+                            <input
+                                type="text"
+                                value={tour.canale_radio || ''}
+                                onChange={(e) => handleUpdateTourInfo('canale_radio', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                                placeholder="es. 4. C9"
+                            />
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                <Users className="w-5 h-5" /> Identificativo Gruppo
+                            </label>
+                            <input
+                                type="text"
+                                value={tour.numero_gruppo || ''}
+                                onChange={(e) => handleUpdateTourInfo('numero_gruppo', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:gray-500 focus:border-gray-500 font-bold text-lg"
+                                placeholder="es. Gruppo 1, A, ecc..."
+                            />
+                        </div>
                     </div>
 
                     <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
@@ -206,18 +224,24 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                     </div>
 
                     {/* TOOLBAR STRUMENTI */}
-                    <div className="flex gap-2 mb-6">
+                    <div className="flex flex-wrap gap-2 mb-6 justify-center md:justify-start">
                         <button
                             onClick={() => setActiveTool(activeTool === 'check' ? null : 'check')}
-                            className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${activeTool === 'check' ? 'bg-green-600 text-white border-green-700 shadow-green-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                            className={`flex flex-col md:flex-row flex-1 md:flex-none px-4 py-3 rounded-xl font-bold items-center justify-center gap-2 transition-all shadow-sm border ${activeTool === 'check' ? 'bg-green-600 text-white border-green-700 shadow-green-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
                             <Check className="w-5 h-5" />
                             <span className="hidden sm:inline">Strumento Arrivato</span>
                         </button>
                         <button
                             onClick={() => setActiveTool(activeTool === 'noshow' ? null : 'noshow')}
-                            className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${activeTool === 'noshow' ? 'bg-red-600 text-white border-red-700 shadow-red-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                            className={`flex flex-col md:flex-row flex-1 md:flex-none px-4 py-3 rounded-xl font-bold items-center justify-center gap-2 transition-all shadow-sm border ${activeTool === 'noshow' ? 'bg-red-600 text-white border-red-700 shadow-red-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
                             <X className="w-5 h-5" />
                             <span className="hidden sm:inline">Strumento No-Show</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTool(activeTool === 'split' ? null : 'split')}
+                            className={`flex flex-col md:flex-row flex-1 md:flex-none px-4 py-3 rounded-xl font-bold items-center justify-center gap-2 transition-all shadow-sm border ${activeTool === 'split' ? 'bg-black text-white border-gray-900 shadow-gray-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                            <Scissors className="w-5 h-5" />
+                            <span className="hidden sm:inline">Dividi Gruppo</span>
                         </button>
                     </div>
 
@@ -250,13 +274,15 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                                                 onClick={(e) => handleRemoveMarker(e, m.id)}
                                                 className={`absolute w-full h-7 -mt-3.5 left-0 flex items-center px-4 cursor-pointer transition-colors border-l-4 group ${m.type === 'check'
                                                     ? 'bg-green-400/30 border-green-600 hover:bg-green-400/50'
-                                                    : 'bg-red-400/30 border-red-600 hover:bg-red-400/50'
+                                                    : m.type === 'noshow'
+                                                        ? 'bg-red-400/30 border-red-600 hover:bg-red-400/50'
+                                                        : 'bg-black/80 border-black hover:bg-black/90' // line nera sbarrata
                                                     }`}
                                                 style={{ top: `${m.y}%` }}
                                                 title="Clicca per rimuovere l'evidenziatura"
                                             >
                                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-md shadow-sm">
-                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : <X size={14} className="text-red-600" strokeWidth={3} />}
+                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : m.type === 'noshow' ? <X size={14} className="text-red-600" strokeWidth={3} /> : <Scissors size={14} className="text-black" strokeWidth={3} />}
                                                 </div>
                                             </div>
                                         ))}
