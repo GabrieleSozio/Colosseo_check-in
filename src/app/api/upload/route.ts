@@ -27,44 +27,15 @@ export async function POST(req: Request) {
         const linguaMatch = text.match(/\d{2}:\d{2}\s+(.*?)\s+(?:STD|del)/i);
         const lingua = linguaMatch ? linguaMatch[1].trim() : 'Sconosciuta';
 
-        // Estrazione Guida: di solito segue la tabella contatti
-        // Cerchiamo la riga dopo "Nome Cognome Email Telefono"
+        // Estrazione Guida: Rollback al metodo originario affidabile
+        // Invece di spacchettare Nome/Mail/Tel con regex complesse che falliscono su layout strani, 
+        // intercettiamo la prima riga che contiene una mail (@) e la salviamo per intero.
         const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
         let guida = 'N/A';
-        let contactHeaderIdx = lines.findIndex(l => l.includes('Nome') && l.includes('Cognome') && l.includes('Email'));
-        if (contactHeaderIdx === -1) {
-            contactHeaderIdx = lines.findIndex(l => l.includes('Email') && l.includes('Telefono'));
-        }
 
-        if (contactHeaderIdx !== -1 && lines.length > contactHeaderIdx + 1) {
-            const contactsLineRaw = lines[contactHeaderIdx + 1];
-
-            // Trova l'email (qualsiasi match es: georgediek@hotmail.com)
-            const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
-            const emailMatch = contactsLineRaw.match(emailRegex);
-
-            if (emailMatch && emailMatch.index !== undefined) {
-                const emailStr = emailMatch[0];
-                const emailIndex = emailMatch.index;
-
-                let nomeRaw = contactsLineRaw.substring(0, emailIndex).trim();
-                let telRaw = contactsLineRaw.substring(emailIndex + emailStr.length).trim();
-
-                let nomeFormattato = nomeRaw.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
-
-                let telFormattato = telRaw.replace(/\s+/g, '').replace(/[^\d+]/g, '');
-                if (telFormattato.length >= 9) {
-                    if (telFormattato.startsWith('39')) {
-                        telFormattato = '+39 ' + telFormattato.substring(2).replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
-                    } else if (!telFormattato.startsWith('+')) {
-                        telFormattato = telFormattato.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
-                    }
-                }
-
-                guida = `Nome Guida: ${nomeFormattato} | Mail: ${emailStr} | Tel: ${telFormattato || 'N/A'}`;
-            } else {
-                guida = contactsLineRaw;
-            }
+        const rigaConMail = lines.find(l => l.includes('@') && l.length > 10 && !l.toLowerCase().includes('totale partecipanti'));
+        if (rigaConMail) {
+            guida = rigaConMail; // Salviamo la riga cruda
         }
 
         // 3. Estrazione Totale Partecipanti (Dal footer del PDF)
@@ -75,7 +46,7 @@ export async function POST(req: Request) {
         }
 
         // 4. Inserimento in Supabase (Solo Turno)
-        const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
+        const colors = ['#8B5CF6', '#EAB308', '#EF4444', '#F97316', '#1D4ED8', '#0EA5E9', '#15803D', '#22C55E', '#78350F', '#171717', '#FFFFFF', '#D946EF', '#FBCFE8'];
         const assignedColor = colors[Math.floor(Math.random() * colors.length)];
 
         // Generiamo l'ID univoco o ce lo facciamo restituire

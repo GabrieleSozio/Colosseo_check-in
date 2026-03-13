@@ -15,11 +15,12 @@ interface Tour {
     canale_radio: string;
     lingua: string;
     guida: string;
+    overlay_data: any[];
 }
 
 export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
     const [tours, setTours] = useState<Tour[]>(initialTours);
-    const [filterOrario, setFilterOrario] = useState('');
+    const [filterOrario, setFilterOrario] = useState<string[]>([]);
     const [filterLingua, setFilterLingua] = useState('');
     const [filterGuida, setFilterGuida] = useState('');
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -30,10 +31,16 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
     const guideUniche = Array.from(new Set(initialTours.map(t => t.guida))).sort();
 
     const filteredTours = tours.filter(tour => {
-        return (filterOrario === '' || tour.orario === filterOrario) &&
+        return (filterOrario.length === 0 || filterOrario.includes(tour.orario)) &&
             (filterLingua === '' || tour.lingua === filterLingua) &&
             (filterGuida === '' || tour.guida.toLowerCase().includes(filterGuida.toLowerCase()));
     });
+
+    const toggleOrarioFilter = (orario: string) => {
+        setFilterOrario(prev =>
+            prev.includes(orario) ? prev.filter(o => o !== orario) : [...prev, orario]
+        );
+    };
 
     const handleDeleteTour = async (e: React.MouseEvent, tourId: string) => {
         e.preventDefault(); // Previene il click sul link
@@ -61,18 +68,22 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
 
             {/* FILTRI */}
             <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-4 sm:flex-row">
-                <div className="flex-1">
-                    <label className="text-sm font-bold text-gray-500 mb-1 block flex items-center gap-1">
-                        <Clock className="w-4 h-4" /> Orario
+                <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-bold text-gray-500 mb-2 block flex items-center gap-1">
+                        <Clock className="w-4 h-4" /> Filtro Orari (Multi-Selezione)
                     </label>
-                    <select
-                        value={filterOrario}
-                        onChange={(e) => setFilterOrario(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 font-medium"
-                    >
-                        <option value="">Tutti</option>
-                        {orariUnici.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                    <div className="flex flex-wrap gap-2">
+                        {orariUnici.map(o => (
+                            <button
+                                key={o}
+                                onClick={() => toggleOrarioFilter(o)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterOrario.includes(o) ? 'bg-blue-600 text-white border-blue-700 shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                            >
+                                {o}
+                            </button>
+                        ))}
+                        {orariUnici.length === 0 && <p className="text-sm text-gray-400 italic">Nessun orario</p>}
+                    </div>
                 </div>
 
                 <div className="flex-1">
@@ -120,9 +131,18 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                                         <Clock className="w-5 h-5 text-gray-400" />
                                         <span className="text-xl font-bold text-gray-800">{tour.orario}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 border border-gray-200 rounded-full shadow-inner">
-                                        <Users className="w-4 h-4 text-gray-600" />
-                                        <span className="text-sm font-black tracking-wide text-gray-800">{tour.totale_pax} PAX</span>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 border border-gray-200 rounded-full shadow-inner">
+                                            <Users className="w-4 h-4 text-gray-600" />
+                                            <span className="text-sm font-black tracking-wide text-gray-800">{tour.totale_pax} PAX</span>
+                                        </div>
+                                        {(() => {
+                                            const arrived = tour.overlay_data ? tour.overlay_data.filter((m: any) => m.type === 'check').length : 0;
+                                            const hasNoShow = tour.overlay_data ? tour.overlay_data.some((m: any) => m.type === 'noshow') : false;
+                                            if (arrived >= tour.totale_pax && tour.totale_pax > 0) return <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-black rounded-md uppercase tracking-wide border border-green-200">Tutti Arrivati</span>;
+                                            if (hasNoShow) return <span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-md uppercase tracking-wide border border-red-200">No Show Presenti</span>;
+                                            return null;
+                                        })()}
                                     </div>
                                 </div>
 
@@ -133,7 +153,9 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                                     </div>
                                     <div className="flex items-center gap-2 text-gray-800">
                                         <UserCheck className="w-4 h-4 text-gray-400" />
-                                        <span className="font-extrabold truncate text-lg">{tour.guida}</span>
+                                        <span className="font-extrabold truncate text-base">
+                                            {tour.guida.replace('Nome Guida: | Mail:', 'Guida:').replace('Nome Guida:', 'Guida:')}
+                                        </span>
                                     </div>
                                 </div>
 

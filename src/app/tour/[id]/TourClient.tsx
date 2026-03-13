@@ -55,12 +55,19 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
     }, [tour.overlay_data]);
 
     const colors = [
-        { name: 'Rosso', hex: '#EF4444' },
-        { name: 'Blu', hex: '#3B82F6' },
-        { name: 'Verde', hex: '#10B981' },
-        { name: 'Giallo', hex: '#F59E0B' },
         { name: 'Viola', hex: '#8B5CF6' },
+        { name: 'Giallo', hex: '#EAB308' },
+        { name: 'Rosso', hex: '#EF4444' },
         { name: 'Arancione', hex: '#F97316' },
+        { name: 'Blu Scuro', hex: '#1D4ED8' },
+        { name: 'Azzurro', hex: '#0EA5E9' },
+        { name: 'Verde Scuro', hex: '#15803D' },
+        { name: 'Verde Chiaro', hex: '#22C55E' },
+        { name: 'Marrone', hex: '#A16207' },
+        { name: 'Nero', hex: '#171717' },
+        { name: 'Bianco', hex: '#FFFFFF' },
+        { name: 'Fucsia', hex: '#D946EF' },
+        { name: 'Rosa Chiaro', hex: '#F472B6' }
     ];
 
     const handleUpdateTourInfo = async (field: string, value: string) => {
@@ -122,8 +129,12 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                         <p className="text-xl font-extrabold text-gray-900">{tour.orario}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm text-gray-500 font-medium">Arrivati</p>
-                        <p className="text-xl font-extrabold text-green-600">{arrivedCount} / {tour.totale_pax}</p>
+                        <p className="text-sm text-gray-500 font-medium mb-1.5">Stato Boarding</p>
+                        {arrivedCount >= tour.totale_pax && tour.totale_pax > 0 ? (
+                            <span className="px-3 py-1.5 bg-green-100 text-green-800 text-sm font-black rounded-lg uppercase tracking-wider border border-green-200 shadow-sm">Tutti Arrivati</span>
+                        ) : markers.some(m => m.type === 'noshow') ? (
+                            <span className="px-3 py-1.5 bg-red-100 text-red-800 text-sm font-black rounded-lg uppercase tracking-wider border border-red-200 shadow-sm">No Show Presenti</span>
+                        ) : null}
                     </div>
                 </div>
             </header>
@@ -187,7 +198,9 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                         {tour.guida && tour.guida !== 'N/A' && (
                             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-900 shadow-sm w-full md:w-auto">
                                 <span className="font-bold text-blue-700 block text-xs uppercase tracking-wider mb-1">Dati Guida Assegnata</span>
-                                <span className="font-medium whitespace-pre-wrap">{tour.guida}</span>
+                                <span className="font-medium whitespace-pre-wrap">
+                                    {tour.guida.replace('Nome Guida: | Mail:', 'Guida:').replace('Nome Guida:', 'Guida:')}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -230,16 +243,21 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                                             className="pointer-events-none select-none"
                                         />
 
-                                        {/* RENDER MARKOVERS */}
+                                        {/* RENDER MARKOVERS (RIGHE EVIDENZIATRICI) */}
                                         {markers.filter(m => m.page === index).map(m => (
                                             <div
                                                 key={m.id}
                                                 onClick={(e) => handleRemoveMarker(e, m.id)}
-                                                className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full flex items-center justify-center cursor-pointer shadow-md hover:scale-110 transition-transform ${m.type === 'check' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
-                                                style={{ left: `${m.x}%`, top: `${m.y}%` }}
-                                                title="Clicca per rimuovere"
+                                                className={`absolute w-full h-7 -mt-3.5 left-0 flex items-center px-4 cursor-pointer transition-colors border-l-4 group ${m.type === 'check'
+                                                    ? 'bg-green-400/30 border-green-600 hover:bg-green-400/50'
+                                                    : 'bg-red-400/30 border-red-600 hover:bg-red-400/50'
+                                                    }`}
+                                                style={{ top: `${m.y}%` }}
+                                                title="Clicca per rimuovere l'evidenziatura"
                                             >
-                                                {m.type === 'check' ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-md shadow-sm">
+                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : <X size={14} className="text-red-600" strokeWidth={3} />}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

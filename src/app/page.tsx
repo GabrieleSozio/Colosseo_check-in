@@ -7,6 +7,7 @@ export default async function Home() {
   const { data: tours, error } = await supabase
     .from('tours')
     .select('*')
+    .order('orario', { ascending: true })
     .order('created_at', { ascending: false });
 
   return (
