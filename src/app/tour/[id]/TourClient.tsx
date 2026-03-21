@@ -1,25 +1,29 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { QRCode } from 'react-qrcode-logo';
-import { Check, X, Users, ArrowLeft, Radio, Palette, Edit3, Trash2, Scissors } from 'lucide-react';
+import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Users, Clock, Radio, Palette, Check, X, Scissors, Loader2 } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { QRCode } from 'react-qrcode-logo';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Tour {
     id: string;
     titolo_file: string;
+    pdf_url: string;
     orario: string;
-    totale_pax: number;
-    colore_assegnato: string;
-    canale_radio: string;
+    lingua: string;
     guida: string;
-    pdf_url?: string;
+    totale_pax: number;
+    canale_radio?: string;
+    colore_assegnato?: string;
     overlay_data?: any;
     numero_gruppo?: string;
+    numero_partenza?: string;
+    stato?: string;
 }
 
 interface Marker {
@@ -30,49 +34,67 @@ interface Marker {
     type: 'check' | 'noshow' | 'split';
 }
 
-export default function TourClient({ initialTour }: { initialTour: Tour, initialBookings?: any[] }) {
-    const [tour, setTour] = useState(initialTour);
-    const [markers, setMarkers] = useState<Marker[]>([]);
+const colors = [
+    { name: 'Red', hex: '#ef4444' },
+    { name: 'Orange', hex: '#f97316' },
+    { name: 'Amber', hex: '#f59e0b' },
+    { name: 'Green', hex: '#22c55e' },
+    { name: 'Emerald', hex: '#10b981' },
+    { name: 'Teal', hex: '#14b8a6' },
+    { name: 'Cyan', hex: '#06b6d4' },
+    { name: 'Blue', hex: '#3b82f6' },
+    { name: 'Indigo', hex: '#6366f1' },
+    { name: 'Violet', hex: '#8b5cf6' },
+    { name: 'Purple', hex: '#a855f7' },
+    { name: 'Fuchsia', hex: '#d946ef' },
+    { name: 'Pink', hex: '#ec4899' },
+    { name: 'Rose', hex: '#f43f5e' },
+];
+
+export default function TourClient() {
+    const params = useParams();
+    const id = params?.id as string;
+    const [tour, setTour] = useState<Tour | null>(null);
+    const [loading, setLoading] = useState(true);
     const [numPages, setNumPages] = useState<number>();
+    const [markers, setMarkers] = useState<Marker[]>([]);
     const [activeTool, setActiveTool] = useState<'check' | 'noshow' | 'split' | null>(null);
+
     const [pageWidth, setPageWidth] = useState(800);
 
     useEffect(() => {
-        // Parse the initial markers from DB
-        try {
-            if (tour.overlay_data) {
-                const parsed = typeof tour.overlay_data === 'string' ? JSON.parse(tour.overlay_data) : tour.overlay_data;
-                if (Array.isArray(parsed)) setMarkers(parsed);
-            }
-        } catch (e) {
-            console.error("Errore parse markers:", e);
-        }
-
-        // Responsiveness per il PDF (Ingrandito come richiesto)
-        const handleResize = () => setPageWidth(Math.min(window.innerWidth - 32, 1200));
+        const handleResize = () => setPageWidth(Math.min(window.innerWidth - 32, 1100));
         handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [tour.overlay_data]);
+    }, []);
 
-    const colors = [
-        { name: 'Viola', hex: '#8B5CF6' },
-        { name: 'Giallo', hex: '#EAB308' },
-        { name: 'Rosso', hex: '#EF4444' },
-        { name: 'Arancione', hex: '#F97316' },
-        { name: 'Blu Scuro', hex: '#1D4ED8' },
-        { name: 'Azzurro', hex: '#0EA5E9' },
-        { name: 'Verde Scuro', hex: '#15803D' },
-        { name: 'Verde Chiaro', hex: '#22C55E' },
-        { name: 'Marrone', hex: '#A16207' },
-        { name: 'Nero', hex: '#171717' },
-        { name: 'Bianco', hex: '#FFFFFF' },
-        { name: 'Fucsia', hex: '#D946EF' },
-        { name: 'Rosa Chiaro', hex: '#F472B6' }
-    ];
+    useEffect(() => {
+        if (!id) return;
 
-    const handleUpdateTourInfo = async (field: string, value: string) => {
-        setTour(prev => ({ ...prev, [field]: value }));
+        const loadTour = async () => {
+            const { data, error } = await supabase.from('tours').select('*').eq('id', id).single();
+            if (error || !data) {
+                notFound();
+                return;
+            }
+            setTour(data);
+            try {
+                if (data.overlay_data) {
+                    const parsed = typeof data.overlay_data === 'string' ? JSON.parse(data.overlay_data) : data.overlay_data;
+                    if (Array.isArray(parsed)) setMarkers(parsed);
+                }
+            } catch (e) { console.error(e); }
+            setLoading(false);
+        };
+        loadTour();
+    }, [id]);
+
+    if (loading) return <div className="p-8 text-center text-gray-500 font-bold flex flex-col items-center gap-4"><Loader2 className="animate-spin w-8 h-8" /> Caricamento dati tour in corso...</div>;
+    if (!tour) return null;
+
+    const handleUpdateTourInfo = async (field: keyof Tour, value: any) => {
+        setTour({ ...tour, [field]: value });
         await supabase.from('tours').update({ [field]: value }).eq('id', tour.id);
     };
 
@@ -83,7 +105,6 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
 
     const handlePageClick = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
         if (!activeTool) return;
-
         const rect = e.currentTarget.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -114,7 +135,23 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
     const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const qrUrl = `${currentUrl}/client-view/${tour.id}`;
 
-    // Non essendoci più bookings testuali con calcolo esatto pax, ci affidiamo al conteggio markers per i checks
+    const getSafeQrColor = (hex?: string) => {
+        if (!hex) return '#000000';
+        const cleanHex = hex.replace('#', '');
+        if (cleanHex.length !== 6) return hex;
+        let r = parseInt(cleanHex.substring(0, 2), 16);
+        let g = parseInt(cleanHex.substring(2, 4), 16);
+        let b = parseInt(cleanHex.substring(4, 6), 16);
+        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (luma > 160) {
+            r = Math.floor(r * 0.6);
+            g = Math.floor(g * 0.6);
+            b = Math.floor(b * 0.6);
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+        return hex;
+    };
+
     const arrivedCount = markers.filter(m => m.type === 'check').length;
 
     return (
@@ -144,61 +181,6 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
             </header>
 
             <div className="p-4 space-y-6 max-w-7xl mx-auto">
-
-                {/* PARTE SUPERIORE: IMPOSTAZIONI TOUR & QR */}
-                <section className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                    <div className="flex items-center gap-2 mb-4 text-gray-800 font-bold">
-                        <Palette className="w-5 h-5" /> Colore Tour
-                    </div>
-                    <div className="flex flex-wrap gap-3 mb-6">
-                        {colors.map(color => (
-                            <button
-                                key={color.hex}
-                                onClick={() => handleUpdateTourInfo('colore_assegnato', color.hex)}
-                                className={`w-10 h-10 rounded-full border-2 transition-transform ${tour.colore_assegnato === color.hex ? 'scale-125 border-gray-900 shadow-md' : 'border-transparent hover:scale-110'}`}
-                                style={{ backgroundColor: color.hex }}
-                            />
-                        ))}
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-6 mb-6">
-                        <div className="flex-1 flex flex-col">
-                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
-                                <Radio className="w-5 h-5" /> Canale Radio
-                            </label>
-                            <input
-                                type="text"
-                                value={tour.canale_radio || ''}
-                                onChange={(e) => handleUpdateTourInfo('canale_radio', e.target.value)}
-                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
-                                placeholder="es. 4. C9"
-                            />
-                        </div>
-                        <div className="flex-1 flex flex-col">
-                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
-                                <Users className="w-5 h-5" /> Identificativo Gruppo
-                            </label>
-                            <input
-                                type="text"
-                                value={tour.numero_gruppo || ''}
-                                onChange={(e) => handleUpdateTourInfo('numero_gruppo', e.target.value)}
-                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:gray-500 focus:border-gray-500 font-bold text-lg"
-                                placeholder="es. Gruppo 1, A, ecc..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                        <p className="text-sm text-gray-500 font-medium mb-3">QR Code Cliente (Mostra per canale)</p>
-                        <div className="bg-white p-2 rounded-xl shadow-sm">
-                            <QRCode value={qrUrl} size={160} fgColor={tour.colore_assegnato || '#000000'} />
-                        </div>
-                        <Link href={qrUrl} target="_blank" className="mt-4 text-blue-600 font-medium text-sm underline">
-                            Apri vista schermo intero
-                        </Link>
-                    </div>
-                </section>
-
 
                 {/* PARTE INFERIORE: VISUALIZZAZIONE PDF INTERATTIVA */}
                 <section className="space-y-4 bg-white p-2 md:p-5 rounded-2xl md:rounded-3xl shadow-sm border border-gray-100">
@@ -250,7 +232,7 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                             <Document
                                 file={tour.pdf_url}
                                 onLoadSuccess={onDocumentLoadSuccess}
-                                loading={<div className="font-bold text-gray-400 py-20 animate-pulse">Caricamento PDF...</div>}
+                                loading={<div className="font-bold text-gray-400 py-20 flex flex-col items-center gap-3"><Loader2 className="w-8 h-8 animate-spin" /> Caricamento PDF...</div>}
                                 error={<div className="font-bold text-red-500 py-10">Errore nel caricamento del PDF. Assicurati che il file esista su Supabase Storage.</div>}
                             >
                                 {Array.from(new Array(numPages || 0), (el, index) => (
@@ -282,7 +264,7 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                                                 title="Clicca per rimuovere l'evidenziatura"
                                             >
                                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-md shadow-sm">
-                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : m.type === 'noshow' ? <X size={14} className="text-red-600" strokeWidth={3} /> : <Scissors size={14} className="text-black" strokeWidth={3} />}
+                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : m.type === 'noshow' ? <X size={14} className="text-red-600" strokeWidth={3} /> : <Scissors size={14} className="text-white" strokeWidth={3} />}
                                                 </div>
                                             </div>
                                         ))}
@@ -295,6 +277,95 @@ export default function TourClient({ initialTour }: { initialTour: Tour, initial
                                 <span>Nessun PDF collegato per la visualizzazione visiva.</span>
                             </div>
                         )}
+                    </div>
+                </section>
+
+                {/* PARTE SUPERIORE: IMPOSTAZIONI TOUR & QR */}
+                <section className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-2 mb-4 text-gray-800 font-bold">
+                        <Palette className="w-5 h-5" /> Colore Tour
+                    </div>
+                    <div className="flex flex-wrap gap-3 mb-6">
+                        {colors.map(color => (
+                            <button
+                                key={color.hex}
+                                onClick={() => handleUpdateTourInfo('colore_assegnato', color.hex)}
+                                className={`w-10 h-10 rounded-full border-2 transition-transform ${tour.colore_assegnato === color.hex ? 'scale-125 border-gray-900 shadow-md' : 'border-transparent hover:scale-110'}`}
+                                style={{ backgroundColor: color.hex }}
+                            />
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-6 mb-6">
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                <Radio className="w-5 h-5" /> Canale Radio
+                            </label>
+                            <input
+                                type="text"
+                                value={tour.canale_radio || ''}
+                                onChange={(e) => handleUpdateTourInfo('canale_radio', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                                placeholder="es. 4. C9"
+                            />
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                <Users className="w-5 h-5" /> Identificativo Gruppo
+                            </label>
+                            <input
+                                type="text"
+                                value={tour.numero_gruppo || ''}
+                                onChange={(e) => handleUpdateTourInfo('numero_gruppo', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:gray-500 focus:border-gray-500 font-bold text-lg"
+                                placeholder="es. Gruppo 1, A, ecc..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-6 mb-6">
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                Numero Partenza
+                            </label>
+                            <input
+                                type="text"
+                                value={tour.numero_partenza || ''}
+                                onChange={(e) => handleUpdateTourInfo('numero_partenza', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-bold text-lg"
+                                placeholder="es. 1, 2, 3..."
+                            />
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            <label className="flex items-center gap-2 mb-2 text-gray-800 font-bold">
+                                Stato Tour
+                            </label>
+                            <select
+                                value={tour.stato || 'Boarding'}
+                                onChange={(e) => handleUpdateTourInfo('stato', e.target.value)}
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg bg-white"
+                            >
+                                <option value="Boarding">Boarding</option>
+                                <option value="Departed">Departed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                        <p className="text-sm text-gray-500 font-medium mb-3">QR Code Cliente (Mostra per canale)</p>
+                        <div className="bg-white p-2 rounded-xl shadow-sm border-4" style={{ borderColor: tour.colore_assegnato || '#fff' }}>
+                            <QRCode 
+                                value={qrUrl} 
+                                size={180} 
+                                fgColor={getSafeQrColor(tour.colore_assegnato)} 
+                                bgColor="#ffffff" 
+                                quietZone={10} 
+                                ecLevel="H" 
+                            />
+                        </div>
+                        <Link href={qrUrl} target="_blank" className="mt-4 text-blue-600 font-medium text-sm underline">
+                            Apri vista schermo intero
+                        </Link>
                     </div>
                 </section>
             </div>

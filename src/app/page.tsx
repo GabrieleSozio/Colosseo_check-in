@@ -12,7 +12,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white px-6 pt-12 pb-6 shadow-sm sticky top-0 z-10">
+      <header className="bg-white px-6 pt-12 pb-6 shadow-sm">
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Tours di Oggi</h1>
         <p className="text-gray-500 mt-1">Colosseo Check-in</p>
       </header>
