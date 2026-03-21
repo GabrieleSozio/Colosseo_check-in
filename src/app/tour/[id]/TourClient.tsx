@@ -254,7 +254,7 @@ export default function TourClient() {
                                             <div
                                                 key={m.id}
                                                 onClick={(e) => handleRemoveMarker(e, m.id)}
-                                                className={`absolute w-full h-7 -mt-3.5 left-0 flex items-center px-4 cursor-pointer transition-colors border-l-4 group ${m.type === 'check'
+                                                className={`absolute w-full h-5 -mt-2.5 left-0 flex items-center px-4 cursor-pointer transition-colors border-l-2 group ${m.type === 'check'
                                                     ? 'bg-green-400/30 border-green-600 hover:bg-green-400/50'
                                                     : m.type === 'noshow'
                                                         ? 'bg-red-400/30 border-red-600 hover:bg-red-400/50'
@@ -263,8 +263,8 @@ export default function TourClient() {
                                                 style={{ top: `${m.y}%` }}
                                                 title="Clicca per rimuovere l'evidenziatura"
                                             >
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-md shadow-sm">
-                                                    {m.type === 'check' ? <Check size={14} className="text-green-600" strokeWidth={3} /> : m.type === 'noshow' ? <X size={14} className="text-red-600" strokeWidth={3} /> : <Scissors size={14} className="text-white" strokeWidth={3} />}
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-white rounded-md shadow-sm">
+                                                    {m.type === 'check' ? <Check size={12} className="text-green-600" strokeWidth={2.5} /> : m.type === 'noshow' ? <X size={12} className="text-red-600" strokeWidth={2.5} /> : <Scissors size={12} className="text-white" strokeWidth={2.5} />}
                                                 </div>
                                             </div>
                                         ))}
