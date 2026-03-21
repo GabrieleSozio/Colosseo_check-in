@@ -169,13 +169,19 @@ export default function TourClient() {
                         <p className="text-sm text-gray-500 font-medium">Orario</p>
                         <p className="text-xl font-extrabold text-gray-900">{tour.orario}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-1">
                         <p className="text-sm text-gray-500 font-medium mb-1.5">Stato Boarding</p>
-                        {arrivedCount >= tour.totale_pax && tour.totale_pax > 0 ? (
-                            <span className="px-3 py-1.5 bg-green-100 text-green-800 text-sm font-black rounded-lg uppercase tracking-wider border border-green-200 shadow-sm">Tutti Arrivati</span>
-                        ) : markers.some(m => m.type === 'noshow') ? (
-                            <span className="px-3 py-1.5 bg-red-100 text-red-800 text-sm font-black rounded-lg uppercase tracking-wider border border-red-200 shadow-sm">No Show Presenti</span>
-                        ) : null}
+                        <div className="flex gap-2">
+                            {arrivedCount >= tour.totale_pax && tour.totale_pax > 0 && (
+                                <span className="px-3 py-1.5 bg-green-100 text-green-800 text-sm font-black rounded-lg uppercase tracking-wider border border-green-200 shadow-sm">Tutti Arrivati</span>
+                            )}
+                            {markers.some(m => m.type === 'noshow') && (
+                                <span className="px-3 py-1.5 bg-red-100 text-red-800 text-sm font-black rounded-lg uppercase tracking-wider border border-red-200 shadow-sm">No Show</span>
+                            )}
+                            {markers.some(m => m.type === 'solotix') && (
+                                <span className="px-3 py-1.5 bg-yellow-100 text-yellow-800 text-sm font-black rounded-lg uppercase tracking-wider border border-yellow-200 shadow-sm">Solo Tix</span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>
