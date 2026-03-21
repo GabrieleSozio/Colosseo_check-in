@@ -215,9 +215,15 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                                             {(() => {
                                                 const arrived = tour.overlay_data ? tour.overlay_data.filter((m: any) => m.type === 'check').length : 0;
                                                 const hasNoShow = tour.overlay_data ? tour.overlay_data.some((m: any) => m.type === 'noshow') : false;
+                                                const hasSoloTix = tour.overlay_data ? tour.overlay_data.some((m: any) => m.type === 'solotix') : false;
+                                                
                                                 if (arrived >= tour.totale_pax && tour.totale_pax > 0) return <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-black rounded-md uppercase tracking-wide border border-green-200">Tutti Arrivati</span>;
-                                                if (hasNoShow) return <span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-md uppercase tracking-wide border border-red-200">No Show Presenti</span>;
-                                                return null;
+                                                
+                                                const tags = [];
+                                                if (hasSoloTix) tags.push(<span key="tix" className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] font-black rounded-md uppercase tracking-wide border border-yellow-200">Solo Tix</span>);
+                                                if (hasNoShow) tags.push(<span key="ns" className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-md uppercase tracking-wide border border-red-200">No Show Presenti</span>);
+                                                
+                                                return tags.length > 0 ? tags : null;
                                             })()}
                                             {tour.stato && tour.stato.toLowerCase() === 'departed' ? (
                                                 <span className="px-2 py-1 bg-gray-200 text-gray-600 text-[10px] font-black rounded-md uppercase tracking-wide border border-gray-300">Departed</span>
