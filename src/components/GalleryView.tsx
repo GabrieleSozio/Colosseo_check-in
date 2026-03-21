@@ -309,10 +309,10 @@ export default function GalleryView({ tours, currentIndex, onPrev, onNext, onUpd
                         <div className="bg-white p-2 md:p-3 rounded-xl shadow-xl border-4 pointer-events-auto transition-transform hover:scale-105" style={{ borderColor: tour.colore_assegnato || '#fff' }}>
                             <QRCode 
                                 value={qrUrl} 
-                                size={100} 
+                                size={120} 
                                 fgColor={getSafeQrColor(tour.colore_assegnato)} 
                                 bgColor="#ffffff" 
-                                ecLevel="H" 
+                                ecLevel="L" 
                             />
                         </div>
                     </div>
