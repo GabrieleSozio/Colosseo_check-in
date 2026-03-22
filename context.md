@@ -1,42 +1,55 @@
-# Contesto dell'Applicazione: Check-in Agenzia Turistica (Colosseo Check-in)
+# Contesto dell'Applicazione "Colosseo Check-in"
 
-Questo documento riassume il contesto, l'architettura e le funzionalità dell'applicazione sviluppata in questo workspace, per potervi fare riferimento in futuro in caso di perdita della cronologia della chat.
+## Scopo
+Applicazione web sviluppata per un'agenzia turistica al fine di gestire i check-in dei partecipanti ai tour in maniera digitale e interattiva, scansionando e manipolando le liste originali in PDF. Sostituisce la carta stampata con un'interfaccia fruibile da tablet.
 
-## 1. Stack Tecnologico
-- **Frontend / Fullstack Framework:** Next.js (App Router, versione React 19).
-- **Styling:** Tailwind CSS.
-- **Icone:** Lucide React.
-- **Backend / Database:** Supabase (PostgreSQL per il database, Supabase Storage per i file PDF).
-- **Gestione PDF:** `pdf-parse` per estrarre il testo lato server, `react-pdf` per l'eventuale rendering lato client.
+## Stack Tecnologico
+- **Frontend & App Framework**: Next.js (App Router), React, Tailwind CSS, Lucide React (Icone).
+- **Backend & Database**: Supabase (Database PostgreSQL + layer API). Tabella centrale: `tours`.
+- **Librerie Chiave**: `react-pdf` (per il render e l'interazione con i PDF delle liste), `react-qrcode-logo` (per la generazione di QR code altamente tracciabili dal cliente).
 
-## 2. Architettura del Database (Supabase)
-L'applicazione si appoggia su Supabase con le seguenti tabelle principali:
-- **`tours`**: Memorizza le informazioni principali di ogni gruppo turistico.
-  - Campi principali: `id`, `titolo_file`, `orario`, `lingua`, `guida` (estratta tramite la mail), `colore_assegnato`, `canale_radio`, `totale_pax`.
-  - Campi aggiunti successivamente: `pdf_url` (link al PDF caricato nello storage), `overlay_data` (JSONB per salvare i marker visivi come check o noshow), `numero_gruppo` (per suddividere liste in più gruppi).
-- **`bookings`**: (Presente nel setup iniziale) Relazionata ai `tours` per gestire le prenotazioni specifiche o i check-in dei singoli clienti.
-- **Storage Buckets**: `liste-pdf` e `tours-pdfs` per il caricamento dei file originali.
+## Architettura e Flusso Dati
 
-## 3. Flusso Principale dell'Applicazione
-1. **Upload del PDF**: L'utente carica un PDF contenente la lista dei partecipanti al tour tramite un `UploadButton` nella Home.
-2. **Parsing lato Server (`src/app/api/upload/route.ts`)**: Il file viene inviato all'API, dove `pdf-parse` estrae il testo. Tramite espressioni regolari (Regex) vengono ricavati in automatico:
-   - Orario del tour.
-   - Lingua.
-   - Nome della guida (cercando la riga che contiene la '@' dell'email).
-   - Numero totale dei partecipanti (dal footer "Totale partecipanti:").
-3. **Salvataggio e Storage**: Viene creato un record nella tabella `tours` con un colore assegnato casualmente per distinguerlo visivamente. Il file PDF originale viene caricato nel bucket Supabase `tours-pdfs` e il link viene salvato nel record.
-4. **Visualizzazione Dashboard (`src/app/HomeClient.tsx`)**: La pagina principale mostra tutte le liste caricate (i "tours di oggi") sotto forma di card colorate. 
-   - Le card mostrano orario, guida, lingua, numero PAX e indicatori di stato (es. "Tutti Arrivati" o "No Show Presenti" in base ai dati di `overlay_data`).
-   - Sono presenti filtri per orario, lingua e ricerca testuale per il nome della guida.
+L'applicativo si suddivide in 3 viste primarie:
 
-## 4. Funzionalità Aggiuntive e Strumenti (Sviluppati di Recente)
-- **Gestione Check-in Visuale**: La dashboard elabora i dati `overlay_data` che contengono l'esito del check-in (tipo: `check` o `noshow`). Permette di capire a colpo d'occhio se tutti i clienti sono arrivati o se ci sono stati dei no-show.
-- **Tool "Split Group" (`numero_gruppo`)**: È stata aggiunta la possibilità di contrassegnare o dividere le liste con un "Gruppo X" (es. Gruppo 1, Gruppo 2) visibile nella card, utile quando un singolo PDF comprende più sottogruppi.
-- **CRM Clienti**: In altre parti dell'app è stata creata (o in via di sviluppo) un'area CRM per gestire i dati dei clienti (Preventivi, Fatture) con funzionalità di edit dal dettaglio cliente.
+1. **Dashboard (HomeClient)**: 
+   - Griglia di _Cards_ che mostrano tutti i tour della giornata estratti dal database Supabase.
+   - Permette di accedere alla vista singola del tour (tramite click sulla lente).
+   - In alto a destra è presente l'interruttore "Gallery View" (Visualizzazione a Galleria) che permette di navigare tutte le liste strisciando su schermo o con le frecce.
+   - Sugli indicatori esterni si vede a colpo d'occhio stato completato, e se c'è presenza di passeggeri "No Show" o "Solo Tix".
+   - È presente un pulsante di "Upload" per caricare nuovi PDF. L'upload attiva una cloud function (tramite `pdf-parse`) che intercetta ora, lingua e guida scansionando chirurgicamente il testo del file.
 
-## 5. File Importanti
-- `src/app/page.tsx` & `src/app/HomeClient.tsx`: Gestiscono la UI principale e il recupero dati dalla tabella `tours`.
-- `src/app/api/upload/route.ts`: Contiene la logica critica di estrazione dati dai file PDF aziendali.
-- `supabase_setup.sql` & `supabase_pdf_update.sql` & `update_db_gruppo.sql`: Script SQL che contengono lo schema del database e le migrazioni aggiunte strada facendo.
+2. **Gestione Check-in Interno (TourClient & GalleryView)**:
+   - Renderizza il file PDF assegnato, sovrapponendovi un _canvas_ invisibile per permettere ai coordinatori di tracciare le righe con il dito sul tablet.
+   - Strumenti Toolbar interattivi (posizionati in alto in Gallery, e al centro nella visualizzazione Singola):
+     - **Arrivato (Verde)**
+     - **No-Show (Rosso)**
+     - **Dividi Gruppo (Nero/Forbici)**
+     - **Solo Tix (Giallo/Biglietto)**
+   - Input Fields ed Editing: Si possono stabilire manualmente info custom come **Canale Radio**, **Colore del Tour**, **Numero Partenza**, **ID Gruppo** e **Stato (Boarding/Departed)**. Le informazioni si auto-salvano sul DB supabase su ogni cambiamento.
+   - **QR Code Generato**: A schermo per ogni tour (nell'angolo in alto a destra nella Gallery) si autogenera un enorme QRCode colorato (con colore del gruppo + bilanciamento automatico della luminosità e Low EC-Level per la massima leggibilità). Che riporta all'url unico dedicato al cliente finale.
 
-Conserva questo file per riprendere il lavoro da dove lo avevamo lasciato qualora si perdesse nuovamente lo storico della chat.
+3. **Interfaccia Cliente (Client View)**:
+   - È la vista "mobile" creata dinamicamente con lo sfondo del colore del gruppo e un testo gigante per indicare il **Canale Radio** agli avventori. 
+   - Scansionando il QR l'utente vi entra. 
+   - Oltre al canale, l'app presenta una richiesta *"How many people are you?"* in cui il visitatore può digitare o scrollare un numero (pax) da mostrare subito dal suo schermo all'operatore della consegna radio.
+
+## Evoluzioni e Fix Importanti Risolti:
+- **Gestione Dinamica `react-pdf` ed SSR (DOMMatrix Error):** Poichè NextJS crashava nel provar a renderizzare `react-pdf` lato server, i componenti "TourClient" e "HomeClient" sono stati astratti e inglobati in importazioni `dynamic({ ssr: false })` dentro i loro root file di `page.tsx`. Ciò previene ogni errore server-side in start-up.
+- **Strumenti "Swipe":** Sulla barra di navigazione della Gallery View si può strisciare verso sinistra o verso destra per cambiare lista in maniera "mobile native", lasciando il PDF touchabile solo per le annotazioni.
+
+## Tabella Database Supabase (`tours`)
+- `id` (UUID - Primary Key)
+- `created_at` (Timestamp)
+- `titolo_file` (Text)
+- `pdf_url` (Text)
+- `orario` (Text)
+- `lingua` (Text)
+- `guida` (Text)
+- `totale_pax` (Integer)
+- `canale_radio` (Text)
+- `colore_assegnato` (Text - codice HEX)
+- `numero_partenza` (Text)
+- `numero_gruppo` (Text)
+- `stato` (Text - "Boarding" | "Departed")
+- `overlay_data` (JSONB) -> Salva l'array di tutti i markers (Strumenti Check, No Show ecc...) sovrapposti al PDF `{id, x, y, page, type}`.
