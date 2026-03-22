@@ -35,18 +35,18 @@ interface Marker {
 }
 
 const colors = [
-    { name: 'Viola', value: '#8B5CF6' },
-    { name: 'Rosso', value: '#EF4444' },
-    { name: 'Arancione', value: '#F97316' },
-    { name: 'Nero', value: '#000000' },
-    { name: 'Giallo', value: '#EAB308' },
-    { name: 'Verde Scuro', value: '#15803D' },
-    { name: 'Verde Chiaro', value: '#4ADE80' },
-    { name: 'Azzurro', value: '#38BDF8' },
-    { name: 'Fucsia', value: '#D946EF' },
-    { name: 'Rosa Chiaro', value: '#FBCFE8' },
-    { name: 'Blu Scuro', value: '#1D4ED8' },
-    { name: 'Marrone', value: '#78350F' }
+    { name: 'Viola', hex: '#8B5CF6' },
+    { name: 'Rosso', hex: '#EF4444' },
+    { name: 'Arancione', hex: '#F97316' },
+    { name: 'Nero', hex: '#000000' },
+    { name: 'Giallo', hex: '#EAB308' },
+    { name: 'Verde Scuro', hex: '#15803D' },
+    { name: 'Verde Chiaro', hex: '#4ADE80' },
+    { name: 'Azzurro', hex: '#38BDF8' },
+    { name: 'Fucsia', hex: '#D946EF' },
+    { name: 'Rosa Chiaro', hex: '#FBCFE8' },
+    { name: 'Blu Scuro', hex: '#1D4ED8' },
+    { name: 'Marrone', hex: '#78350F' }
 ];
 
 export default function TourClient() {
