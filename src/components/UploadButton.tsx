@@ -11,28 +11,30 @@ export default function UploadButton() {
     const router = useRouter();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
 
         setIsUploading(true);
         setError(null);
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
+            await Promise.all(files.map(async (file) => {
+                const formData = new FormData();
+                formData.append('file', file);
 
-            const data = await res.json();
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-            if (!res.ok) {
-                throw new Error(data.error || 'Errore durante il caricamento');
-            }
+                const data = await res.json();
 
-            // Ricarica la pagina per mostrare il nuovo tour nella dashboard
+                if (!res.ok) {
+                    throw new Error(data.error || `Errore durante il caricamento di ${file.name}`);
+                }
+            }));
+
+            // Ricarica la pagina per mostrare i nuovi tour nella dashboard
             router.refresh();
 
         } catch (err: unknown) {
@@ -54,6 +56,7 @@ export default function UploadButton() {
             <input
                 type="file"
                 accept=".pdf"
+                multiple
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
@@ -72,7 +75,7 @@ export default function UploadButton() {
                 ) : (
                     <>
                         <UploadCloud className="w-6 h-6" />
-                        <span>Carica Lista (PDF)</span>
+                        <span className="whitespace-nowrap">Carica Liste</span>
                     </>
                 )}
             </button>

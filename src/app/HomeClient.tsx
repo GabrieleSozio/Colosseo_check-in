@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Users, Clock, Languages, UserCheck, Search, Trash2, Filter, LayoutGrid, BookOpen, Check } from 'lucide-react';
+import { Users, Clock, Languages, UserCheck, Search, Trash2, Filter, LayoutGrid, BookOpen, Check, Loader2 } from 'lucide-react';
 import UploadButton from '@/components/UploadButton';
 import dynamic from 'next/dynamic';
 
@@ -103,10 +103,46 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
         setIsDeleting(null);
     };
 
+    const handleDeleteAll = async () => {
+        if (tours.length === 0) return;
+        const confirmDelete = window.confirm("Sei sicuro di voler eliminare TUTTE le liste in una sola volta? Questa operazione svuoterà l'intera dashboard e non è reversibile.");
+        if (!confirmDelete) return;
+
+        setIsDeleting('all');
+
+        const allIds = tours.map(t => t.id);
+        if (allIds.length > 0) {
+            // Eliminiamo eventuali bookings associati ai tour (se presenti e non in cascade)
+            await supabase.from('bookings').delete().in('tour_id', allIds);
+            const { error } = await supabase.from('tours').delete().in('id', allIds);
+            
+            if (error) {
+                alert(`Errore durante l'eliminazione complessiva: ${error.message}`);
+            } else {
+                setTours([]); // Svuota lo state
+            }
+        }
+        setIsDeleting(null);
+    };
+
     return (
         <div className="p-4 md:p-6 space-y-4 md:space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <UploadButton />
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="flex-1 md:flex-none md:min-w-[200px]">
+                        <UploadButton />
+                    </div>
+                    {tours.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            disabled={isDeleting === 'all'}
+                            className="flex items-center justify-center gap-2 px-4 py-4 rounded-2xl font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors shadow-sm h-[56px]"
+                            title="Elimina Tutte le Liste"
+                        >
+                            {isDeleting === 'all' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                        </button>
+                    )}
+                </div>
                 
                 <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto">
                     <button
