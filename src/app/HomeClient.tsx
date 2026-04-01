@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Users, Clock, Languages, UserCheck, Search, Trash2, Filter, LayoutGrid, BookOpen, Check, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Users, Clock, Languages, UserCheck, Search, Trash2, Filter, LayoutGrid, BookOpen, Check, Loader2, GripVertical, RefreshCw } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import UploadButton from '@/components/UploadButton';
 import dynamic from 'next/dynamic';
 
@@ -29,6 +31,12 @@ interface Tour {
 
 export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
     const [tours, setTours] = useState<Tour[]>(initialTours);
+    const router = useRouter();
+
+    useEffect(() => {
+        setTours(initialTours);
+    }, [initialTours]);
+    
     const [filterOrario, setFilterOrario] = useState<string[]>([]);
     const [filterLingua, setFilterLingua] = useState<string[]>([]);
     const [filterGuida, setFilterGuida] = useState('');
@@ -103,6 +111,45 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
         setIsDeleting(null);
     };
 
+    const handleDragEnd = async (result: DropResult) => {
+        if (!result.destination) return;
+        
+        const sourceIndex = result.source.index;
+        const destinationIndex = result.destination.index;
+        
+        if (sourceIndex === destinationIndex) return;
+
+        // Ordiniamo un array clone di tutti i tours 
+        const newTours = Array.from(tours);
+        const [reorderedItem] = newTours.splice(sourceIndex, 1);
+        newTours.splice(destinationIndex, 0, reorderedItem);
+
+        // Aggiorniamo order_index localmente
+        const updatedTours = newTours.map((t, index) => ({
+            ...t,
+            order_index: index
+        }));
+
+        setTours(updatedTours);
+
+        // Salviamo su Supabase (Upsert per aggiornare multiple rows)
+        const updates = updatedTours.map(t => ({
+            id: t.id,
+            order_index: t.order_index
+        }));
+
+        await supabase.from('tours').upsert(updates, { onConflict: 'id' });
+    };
+
+    const isDnDEnabled = filterOrario.length === 0 && filterLingua.length === 0 && filterGuida === '';
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        router.refresh();
+        setTimeout(() => setIsRefreshing(false), 500);
+    };
+
     const handleDeleteAll = async () => {
         if (tours.length === 0) return;
         const confirmDelete = window.confirm("Sei sicuro di voler eliminare TUTTE le liste in una sola volta? Questa operazione svuoterà l'intera dashboard e non è reversibile.");
@@ -144,7 +191,15 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                     )}
                 </div>
                 
-                <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto">
+                <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full md:w-auto overflow-hidden">
+                    <button
+                        onClick={handleRefresh}
+                        className={`flex-none px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all text-gray-500 hover:text-blue-600 border border-transparent`}
+                        title="Aggiorna Dati dal Server"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
+                        <span className="hidden sm:inline">Ricarica</span>
+                    </button>
                     <button
                         onClick={() => setViewMode('cards')}
                         className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${viewMode === 'cards' ? 'bg-white shadow-sm text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
@@ -217,17 +272,36 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
             </div>
 
             {/* LISTA TOUR */}
-            <div className="space-y-4 pb-10">
-                {filteredTours.map((tour) => (
-                    <Link key={tour.id} href={`/tour/${tour.id}`} className="block relative group">
-                        <div className={`bg-white rounded-3xl p-5 shadow-sm border border-gray-100/50 hover:shadow-md transition-all active:scale-[0.99] overflow-hidden ${isDeleting === tour.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                            {/* Banda Colorata */}
-                            <div
-                                className="absolute top-0 left-0 w-2 h-full z-10"
-                                style={{ backgroundColor: tour.colore_assegnato || '#cbd5e1' }}
-                            />
+            <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="tours-list" isDropDisabled={!isDnDEnabled || viewMode !== 'cards'}>
+                    {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4 pb-10">
+                            {filteredTours.map((tour, index) => (
+                                <Draggable key={tour.id} draggableId={tour.id} index={index} isDragDisabled={!isDnDEnabled}>
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            className={`relative group bg-white rounded-3xl p-5 shadow-sm border border-gray-100/50 transition-all ${isDeleting === tour.id ? 'opacity-50 pointer-events-none' : ''} ${snapshot.isDragging ? 'shadow-2xl ring-4 ring-blue-500/20 z-50 scale-[1.02]' : 'hover:shadow-md'}`}
+                                        >
+                                            {isDnDEnabled && (
+                                                <div 
+                                                    {...provided.dragHandleProps} 
+                                                    className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-gray-50 rounded-l-3xl z-20 group-hover:opacity-100 opacity-60 text-gray-400"
+                                                >
+                                                    <GripVertical className="w-5 h-5" />
+                                                </div>
+                                            )}
+                                            
+                                            <Link href={`/tour/${tour.id}`} className="block relative h-full">
 
-                            <div className="pl-3 relative">                                <div className="flex justify-between items-start mb-4">
+                                                {/* Banda Colorata */}
+                                                <div
+                                                    className={`absolute top-0 bottom-0 w-2 h-full z-10 transition-all rounded-full ${isDnDEnabled ? 'left-8' : 'left-0'}`}
+                                                    style={{ backgroundColor: tour.colore_assegnato || '#cbd5e1' }}
+                                                />
+
+                                                <div className={`relative ${isDnDEnabled ? 'pl-11' : 'pl-3'}`}>                                <div className="flex justify-between items-start mb-4">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Clock className="w-5 h-5 text-gray-400" />
                                         <span className="text-xl font-bold text-gray-800">{tour.orario}</span>
@@ -299,9 +373,16 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    </Link>
-                ))}
+                        </Link>
+                    </div>
+                )}
+                </Draggable>
+            ))}
+            {provided.placeholder}
+            </div>
+        )}
+        </Droppable>
+        </DragDropContext>
 
                 {filteredTours.length === 0 && tours.length > 0 && (
                     <div className="text-center py-12 text-gray-500 font-medium bg-white rounded-3xl border border-dashed border-gray-300">
@@ -314,7 +395,6 @@ export default function HomeClient({ initialTours }: { initialTours: Tour[] }) {
                         Nessun tour registrato. Carica un PDF per iniziare.
                     </div>
                 )}
-            </div>
                 </>
             ) : (
                 <>

@@ -4,11 +4,12 @@ import HomeClient from './HomeClient';
 export const revalidate = 0; // Disabilita cache per avere i dati sempre aggiornati
 
 export default async function Home() {
-  const { data: tours, error } = await supabase
-    .from('tours')
-    .select('*')
-    .order('orario', { ascending: true })
-    .order('created_at', { ascending: false });
+    const { data: tours, error } = await supabase
+        .from('tours')
+        .select('*')
+        .order('order_index', { ascending: true })
+        .order('orario', { ascending: true })
+        .order('created_at', { ascending: false });
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">

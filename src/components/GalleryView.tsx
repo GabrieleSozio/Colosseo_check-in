@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { QRCode } from 'react-qrcode-logo';
 import { supabase } from '@/lib/supabase';
-import { ChevronLeft, ChevronRight, Check, X, Scissors, Users, Loader2, Ticket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Scissors, Users, Loader2, Ticket, Type } from 'lucide-react';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -29,7 +29,8 @@ interface Marker {
     x: number;
     y: number;
     page: number;
-    type: 'check' | 'noshow' | 'split' | 'solotix';
+    type: 'check' | 'noshow' | 'split' | 'solotix' | 'text';
+    text?: string;
 }
 
 interface GalleryViewProps {
@@ -45,7 +46,7 @@ export default function GalleryView({ tours, currentIndex, onPrev, onNext, onUpd
     const tour = localTours[currentIndex];
     const [markers, setMarkers] = useState<Marker[]>([]);
     const [numPages, setNumPages] = useState<number>();
-    const [activeTool, setActiveTool] = useState<'check' | 'noshow' | 'split' | 'solotix' | null>(null);
+    const [activeTool, setActiveTool] = useState<'check' | 'noshow' | 'split' | 'solotix' | 'text' | null>(null);
     const [pageWidth, setPageWidth] = useState(800);
 
     const touchStartX = useRef<number | null>(null);
@@ -143,9 +144,17 @@ export default function GalleryView({ tours, currentIndex, onPrev, onNext, onUpd
         const rect = e.currentTarget.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        let textPayload = undefined;
+        if (activeTool === 'text') {
+            const userInput = window.prompt("Inserisci il testo (o Annulla):");
+            if (!userInput || userInput.trim() === "") return;
+            textPayload = userInput.trim();
+        }
+
         const newMarker: Marker = {
             id: Date.now().toString(),
-            x, y, page: pageIndex, type: activeTool
+            x, y, page: pageIndex, type: activeTool, text: textPayload
         };
         saveMarkers([...markers, newMarker]);
     };
@@ -242,6 +251,12 @@ export default function GalleryView({ tours, currentIndex, onPrev, onNext, onUpd
                     <Ticket className="w-5 h-5" />
                     <span className="hidden sm:inline">Solo Tix</span>
                 </button>
+                <button
+                    onClick={() => setActiveTool(activeTool === 'text' ? null : 'text')}
+                    className={`flex px-4 py-2 rounded-xl font-bold items-center gap-2 transition-all shadow-sm border ${activeTool === 'text' ? 'bg-indigo-600 text-white border-indigo-700 shadow-indigo-500/30' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                    <Type className="w-5 h-5" />
+                    <span className="hidden sm:inline">Text</span>
+                </button>
             </div>
 
             {/* PDF Render Container */}
@@ -272,20 +287,27 @@ export default function GalleryView({ tours, currentIndex, onPrev, onNext, onUpd
                                     <div
                                         key={m.id}
                                         onClick={(e) => handleRemoveMarker(e, m.id)}
-                                        className={`absolute w-full h-5 -mt-2.5 left-0 flex items-center px-4 cursor-pointer transition-colors border-l-2 group ${m.type === 'check'
-                                            ? 'bg-green-400/30 border-green-600 hover:bg-green-400/50'
+                                        className={`absolute cursor-pointer transition-colors group z-50 ${
+                                            m.type === 'text'
+                                            ? 'text-red-600 opacity-100 leading-none whitespace-nowrap hover:text-red-700 hover:bg-white/80 px-1 rounded transform -translate-x-1 -mt-2'
+                                            : m.type === 'check'
+                                            ? 'w-full h-5 -mt-2.5 left-0 flex items-center px-4 border-l-2 bg-green-400/30 border-green-600 hover:bg-green-400/50'
                                             : m.type === 'noshow'
-                                                ? 'bg-red-400/30 border-red-600 hover:bg-red-400/50'
+                                                ? 'w-full h-5 -mt-2.5 left-0 flex items-center px-4 border-l-2 bg-red-400/30 border-red-600 hover:bg-red-400/50'
                                                 : m.type === 'split'
-                                                    ? 'bg-black/80 border-black hover:bg-black/90'
-                                                    : 'bg-yellow-400/30 border-yellow-600 hover:bg-yellow-400/50'
+                                                    ? 'w-full h-5 -mt-2.5 left-0 flex items-center px-4 border-l-2 bg-black/80 border-black hover:bg-black/90'
+                                                    : 'w-full h-5 -mt-2.5 left-0 flex items-center px-4 border-l-2 bg-yellow-400/30 border-yellow-600 hover:bg-yellow-400/50'
                                             }`}
-                                        style={{ top: `${m.y}%` }}
+                                        style={m.type === 'text' ? { top: `${m.y}%`, left: `${m.x}%`, color: '#dc2626', fontSize: '15px', fontWeight: 900, textShadow: '0 0 4px rgba(255,255,255,0.8)' } : { top: `${m.y}%`, left: 0 }}
                                         title="Clicca per rimuovere l'evidenziatura"
                                     >
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-white rounded-md shadow-sm">
-                                            {m.type === 'check' ? <Check size={12} className="text-green-600" strokeWidth={2.5} /> : m.type === 'noshow' ? <X size={12} className="text-red-600" strokeWidth={2.5} /> : m.type === 'split' ? <Scissors size={12} className="text-black" strokeWidth={2.5} /> : <Ticket size={12} className="text-yellow-600" strokeWidth={2.5} />}
-                                        </div>
+                                        {m.type === 'text' ? (
+                                            <span>{m.text}</span>
+                                        ) : (
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-white rounded-md shadow-sm">
+                                                {m.type === 'check' ? <Check size={12} className="text-green-600" strokeWidth={2.5} /> : m.type === 'noshow' ? <X size={12} className="text-red-600" strokeWidth={2.5} /> : m.type === 'split' ? <Scissors size={12} className="text-black" strokeWidth={2.5} /> : <Ticket size={12} className="text-yellow-600" strokeWidth={2.5} />}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
